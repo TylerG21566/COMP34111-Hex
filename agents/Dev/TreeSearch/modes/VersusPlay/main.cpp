@@ -6,10 +6,11 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <memory>
 #include <random>
 #include <string>
 
-#include "eval/RandomEvaluator.h"
+#include "evaluation/EvaluatorFactory.h"
 #include "mcts/Search.h"
 #include "protocol/Protocol.h"
 
@@ -47,9 +48,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Placeholder: replace with the trained network
-    hex::RandomEvaluator evaluator(readSeed());
-    hex::Search search(evaluator, hex::SearchConfig{});
+    const std::unique_ptr<hex::Evaluator> evaluator = hex::makeEvaluator(readSeed());
+    hex::Search search(*evaluator, hex::SearchConfig{});
 
     std::string line;
     while (std::getline(std::cin, line)) {

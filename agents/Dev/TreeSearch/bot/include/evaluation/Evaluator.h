@@ -14,8 +14,7 @@ struct Evaluation {
     std::array<float, kCells> policy{};
 };
 
-// What the search needs from the Eval Network. The trained network will be
-// another implementation of this class.
+// Scores positions for the search.
 class Evaluator {
 public:
     virtual ~Evaluator() = default;

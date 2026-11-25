@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "eval/Evaluator.h"
+#include "evaluation/Evaluator.h"
 #include "game/Board.h"
 
 namespace hex {

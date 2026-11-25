@@ -1,0 +1,8 @@
+# Compiled by build.sh
+/cpp_agent
+
+# Generated while training (the folders themselves stay in git)
+/EvalNetwork/training/data/*
+/EvalNetwork/training/checkpoints/*
+/EvalNetwork/training/runs/*
+!.gitkeep

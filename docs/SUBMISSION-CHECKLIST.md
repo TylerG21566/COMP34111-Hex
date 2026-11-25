@@ -11,9 +11,6 @@ your own Canvas group number, always with three digits.
 
 The rules are in [GAME.md](GAME.md). 
 
-**This assessment is AI prohibited:** all submissions must be written by
-humans (see the coursework brief).
-
 ## 1. Start the container
 
 Follow the [README](../README.md) to build the image and start the container.

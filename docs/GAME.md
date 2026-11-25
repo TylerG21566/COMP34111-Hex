@@ -32,9 +32,6 @@ needs, and, if your agent has compiled parts, their source and a `build.sh`
 (see [Compiled code and build.sh](#compiled-code-and-buildsh)). Do not include
 copies of libraries: use only the packages in the Docker image.
 
-**This assessment is AI prohibited:** all submissions must be written by
-humans (see the coursework brief).
-
 Before you submit, follow the [submission checklist](SUBMISSION-CHECKLIST.md):
 it tells you how to test your bot in the container with
 `check_submission.py`, and how to test your `.tar` file on a fresh copy of

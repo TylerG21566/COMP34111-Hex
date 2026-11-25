@@ -1,16 +1,13 @@
-// The program DevAgent.py starts: cpp_agent <R|B> <board size>
+// The program DevAgent.py starts: cpp_agent <R|B> <board size> <weights file>
 // The colour is not used: the board in each message gives the side to move,
 // which stays correct when either player swaps.
 
-#include <cstdint>
-#include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <memory>
-#include <random>
+#include <optional>
 #include <string>
 
-#include "evaluation/EvaluatorFactory.h"
+#include "evaluation/NetworkEvaluator.h"
 #include "mcts/Search.h"
 #include "protocol/Protocol.h"
 
@@ -19,13 +16,6 @@ namespace {
 // Red's first move. A fixed move off the centre, so that it is not an obvious
 // swap; a trained network could choose it instead.
 constexpr int kOpeningCell = 1 * hex::kSize + 2;
-
-// The engine sets HEX_SEED, so that a game can be repeated
-std::uint64_t readSeed() {
-    const char* text = std::getenv("HEX_SEED");
-    if (text != nullptr && *text != '\0') return std::strtoull(text, nullptr, 10);
-    return std::random_device{}();
-}
 
 std::string chooseReply(hex::Search& search, const hex::Request& request) {
     if (request.turn == 1) return hex::formatMove(kOpeningCell);
@@ -43,12 +33,22 @@ std::string chooseReply(hex::Search& search, const hex::Request& request) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc >= 3 && std::string(argv[2]) != std::to_string(hex::kSize)) {
+    if (argc != 4) {
+        std::cerr << "usage: cpp_agent <R|B> <board size> <weights file>\n";
+        return 1;
+    }
+    if (std::string(argv[2]) != std::to_string(hex::kSize)) {
         std::cerr << "only " << hex::kSize << "x" << hex::kSize << " boards are supported\n";
         return 1;
     }
 
-    const std::unique_ptr<hex::Evaluator> evaluator = hex::makeEvaluator(readSeed());
+    std::optional<hex::NetworkEvaluator> evaluator;
+    try {
+        evaluator.emplace(hex::Network::load(argv[3]));
+    } catch (const std::exception& e) {
+        std::cerr << "cpp_agent: " << e.what() << "\n";
+        return 1;
+    }
     hex::Search search(*evaluator, hex::SearchConfig{});
 
     std::string line;

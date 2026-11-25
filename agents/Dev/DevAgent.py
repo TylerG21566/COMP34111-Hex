@@ -9,13 +9,16 @@ from src.Move import Move
 
 # The compiled C++ agent. Change this to launch a different program.
 CPP_AGENT = Path(__file__).resolve().parent / "cpp_agent"
+# The network the C++ agent plays with, written by EvalNetwork/training/export.py
+WEIGHTS = Path(__file__).resolve().parent / "EvalNetwork" / "weights" / "best.bin"
 BOARD_SIZE = 11
 
 
 class DevAgent(AgentBase):
     """Runs a compiled C++ agent and passes messages between it and the engine.
 
-    The C++ program is started once per game as `cpp_agent <R|B> <board size>`.
+    The C++ program is started once per game as
+    `cpp_agent <R|B> <board size> <weights file>`.
     Each turn it reads one line from stdin and writes one line to stdout:
 
         in:   COMMAND;MOVE;BOARD;TURN;    COMMAND is START, CHANGE or SWAP
@@ -31,15 +34,22 @@ class DevAgent(AgentBase):
     Full protocol: "Message format" in docs/GAME.md.
     """
 
-    def __init__(self, colour: Colour, cpp_agent: Path | str = CPP_AGENT):
+    def __init__(
+        self,
+        colour: Colour,
+        cpp_agent: Path | str = CPP_AGENT,
+        weights: Path | str = WEIGHTS,
+    ):
         super().__init__(colour)
 
         if not Path(cpp_agent).is_file():
             raise FileNotFoundError(f"C++ agent not found at {cpp_agent}: compile it first.")
+        if not Path(weights).is_file():
+            raise FileNotFoundError(f"Network not found at {weights}: export one first.")
 
         # stderr is not piped, so C++ debug output goes to the terminal
         self.agent_process = Popen(
-            [str(cpp_agent), colour.to_protocol_char(), str(BOARD_SIZE)],
+            [str(cpp_agent), colour.to_protocol_char(), str(BOARD_SIZE), str(weights)],
             stdin=PIPE,
             stdout=PIPE,
             text=True,

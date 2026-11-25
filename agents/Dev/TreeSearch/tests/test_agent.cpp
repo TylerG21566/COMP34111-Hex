@@ -3,9 +3,13 @@
 
 #include <chrono>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <random>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "evaluation/NetworkEvaluator.h"
 #include "mcts/Search.h"
@@ -38,6 +42,82 @@ static std::string nearlyWonByRed(bool blueHasExtraStone) {
     return text;
 }
 
+static Linear randomLinear(int inputs, int outputs, std::mt19937& rng) {
+    const float range = std::sqrt(6.0f / static_cast<float>(inputs + outputs));
+    std::uniform_real_distribution<float> weight(-range, range);
+    Linear linear{inputs, outputs, {}, std::vector<float>(outputs, 0.0f)};
+    for (int i = 0; i < inputs * outputs; ++i) linear.weights.push_back(weight(rng));
+    return linear;
+}
+
+static Network randomNetwork(int seed) {
+    std::mt19937 rng(seed);
+    Layers trunk{randomLinear(Network::kInputs, 64, rng), Relu{}};
+    Layers valueHead{randomLinear(64, 1, rng), Tanh{}};
+    Layers policyHead{randomLinear(64, kCells, rng)};
+    return Network(trunk, valueHead, policyHead);
+}
+
+static void testNetworkShapes() {
+    std::mt19937 rng(1);
+    auto refused = [](Layers trunk, Layers valueHead, Layers policyHead) {
+        try {
+            Network(trunk, valueHead, policyHead);
+        } catch (const std::invalid_argument&) {
+            return true;
+        }
+        return false;
+    };
+    const Layers trunk{randomLinear(Network::kInputs, 32, rng), Relu{}};
+    const Layers value{randomLinear(32, 1, rng), Tanh{}};
+    const Layers policy{randomLinear(32, kCells, rng)};
+    check(!refused(trunk, value, policy), "network: a valid shape is accepted");
+    check(!refused({}, {randomLinear(Network::kInputs, 1, rng), Tanh{}},
+                   {randomLinear(Network::kInputs, kCells, rng)}),
+          "network: no hidden layers is accepted");
+    check(refused({randomLinear(100, 32, rng)}, value, policy), "network: wrong inputs are refused");
+    check(refused(trunk, {randomLinear(32, 2, rng), Tanh{}}, policy),
+          "network: wrong value outputs are refused");
+    check(refused(trunk, {randomLinear(32, 1, rng)}, policy),
+          "network: a value head without tanh is refused");
+    check(refused(trunk, value, {randomLinear(32, 100, rng)}),
+          "network: wrong policy outputs are refused");
+    check(refused({randomLinear(Network::kInputs, 40, rng)}, value, policy),
+          "network: layers that do not fit together are refused");
+}
+
+static void writeFile(const std::string& path, const std::string& bytes) {
+    std::ofstream(path, std::ios::binary) << bytes;
+}
+
+static void testNetworkFiles() {
+    const std::string path =
+        (std::filesystem::temp_directory_path() / "hex_test_network.bin").string();
+    auto refused = [&](const std::string& bytes) {
+        writeFile(path, bytes);
+        try {
+            Network::load(path);
+        } catch (const std::runtime_error&) {
+            return true;
+        }
+        return false;
+    };
+    const std::string version("\1\0\0\0", 4), zero(4, '\0');
+    check(refused(""), "network file: empty is refused");
+    check(refused("not a network file"), "network file: other files are refused");
+    check(refused("HEXN" + version), "network file: cut short is refused");
+    check(refused("HEXN" + std::string("\2\0\0\0", 4) + zero + zero + zero),
+          "network file: another version is refused");
+    check(refused("HEXN" + version + version + std::string("\x63\0\0\0", 4)),
+          "network file: an unknown layer is refused");
+    check(refused("HEXN" + version + version + version + std::string(8, '\xff')),
+          "network file: a huge layer is refused");
+    std::filesystem::remove(path);
+    bool threw = false;
+    try { Network::load(path); } catch (const std::runtime_error&) { threw = true; }
+    check(threw, "network file: a missing file is refused");
+}
+
 static void testNetwork() {
     // The same position for each colour: stones mirrored and colours swapped.
     // Blue moves in the first (3 Red, 2 Blue), Red in the second.
@@ -56,9 +136,9 @@ static void testNetwork() {
 
     bool inRange = true, repeats = true, symmetric = true, differs = false;
     for (int seed = 0; seed < 20; ++seed) {
-        NetworkEvaluator evaluator(Network::withRandomWeights(seed));
-        NetworkEvaluator same(Network::withRandomWeights(seed));
-        NetworkEvaluator other(Network::withRandomWeights(seed + 100));
+        NetworkEvaluator evaluator(randomNetwork(seed));
+        NetworkEvaluator same(randomNetwork(seed));
+        NetworkEvaluator other(randomNetwork(seed + 100));
         const Evaluation a = evaluator.evaluate(blue), b = evaluator.evaluate(red);
 
         float total = 0.0f;
@@ -87,7 +167,7 @@ static void testNetwork() {
 static void testSearch() {
     bool findsWin = true, findsBlock = true, provesWin = true, seesLoss = true;
     for (int seed = 0; seed < 20; ++seed) {
-        NetworkEvaluator evaluator(Network::withRandomWeights(seed));
+        NetworkEvaluator evaluator(randomNetwork(seed));
         Search search(evaluator, SearchConfig{});
 
         // Red wins at (10,4) or (10,5), the two cells below (9,5)
@@ -191,6 +271,8 @@ int main() {
     }
     check(agrees, "findWinningMove agrees with trying every move (500 games)");
 
+    testNetworkShapes();
+    testNetworkFiles();
     testNetwork();
     testSearch();
 

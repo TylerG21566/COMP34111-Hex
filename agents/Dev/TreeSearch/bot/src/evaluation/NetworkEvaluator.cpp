@@ -1,5 +1,7 @@
 #include "evaluation/NetworkEvaluator.h"
 
+#include <vector>
+
 namespace hex {
 
 namespace {
@@ -15,7 +17,7 @@ int networkCell(int cell, Colour toMove) {
 Evaluation NetworkEvaluator::evaluate(const Board& board) {
     const Colour me = board.toMove();
 
-    std::array<float, Network::kInputs> input{};
+    std::vector<float> input(Network::kInputs, 0.0f);
     for (int cell = 0; cell < kCells; ++cell) {
         if (board.isEmpty(cell)) continue;
         const int plane = board.at(cell) == me ? 0 : 1;

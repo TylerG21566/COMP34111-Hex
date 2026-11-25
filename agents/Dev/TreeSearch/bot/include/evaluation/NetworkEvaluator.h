@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "evaluation/Evaluator.h"
 #include "evaluation/Network.h"
 
@@ -10,7 +12,7 @@ namespace hex {
 // its diagonal, so the network only has to learn one side.
 class NetworkEvaluator : public Evaluator {
 public:
-    explicit NetworkEvaluator(const Network& network) : network_(network) {}
+    explicit NetworkEvaluator(Network network) : network_(std::move(network)) {}
     Evaluation evaluate(const Board& board) override;
 
 private:
